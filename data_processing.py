@@ -16,6 +16,13 @@ def imshow(img):
     plt.show()
 
 
+def imshow_sample(x, y):
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    ax1.imshow(x)
+    ax2.imshow(y)
+    plt.show()
+
+
 def read_sample(x, y):
     x = read_image(x, channels=3)
     y = read_image(y, channels=1)
