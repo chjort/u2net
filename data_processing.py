@@ -48,14 +48,14 @@ def preprocess_img(x, size=(320, 320)):
     return x
 
 
-def augment(x, y, seed=None):
+def augment(x, y, crop_size=(288, 288), seed=None):
     x_channels = tf.shape(x)[-1]
     xy = tf.concat([x, y], axis=-1)
 
     xy = tf.image.random_flip_left_right(xy, seed=seed)
 
     shape = tf.shape(xy)
-    xy = tf.image.random_crop(xy, size=(shape[0], 288, 288, shape[3]), seed=seed)
+    xy = tf.image.random_crop(xy, size=(shape[0], *crop_size, shape[3]), seed=seed)
 
     x = xy[..., :x_channels]
     y = xy[..., x_channels:]

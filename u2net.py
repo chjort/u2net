@@ -9,16 +9,6 @@ def _upsample_like(src, tar):
     return src
 
 
-class UpsampleLike(tf.keras.layers.Layer):
-    """ upsample tensor 'src' to have the same spatial size with tensor 'tar' """
-    def __init__(self, name=None):
-        super(UpsampleLike, self).__init__(name=name)
-
-    def __call__(self, x):
-        src, tar = x
-        return _upsample_like(src, tar)
-
-
 class REBNCONV(tf.keras.layers.Layer):
     def __init__(self, out_ch=3, dirate=1, name=None):
         super(REBNCONV, self).__init__(name=name)
@@ -26,11 +16,10 @@ class REBNCONV(tf.keras.layers.Layer):
         self.bn_s1 = kl.BatchNormalization()
 
     def call(self, x, training=False):
-        hx = x
-        hx = self.conv_s1(hx)
-        hx = self.bn_s1(hx, training)
-        xout = tf.nn.relu(hx)
-        return xout  # return original size
+        x = self.conv_s1(x)
+        x = self.bn_s1(x, training)
+        x = tf.nn.relu(x)
+        return x
 
 
 ### RSU-7 ###
@@ -337,24 +326,24 @@ def U2Net(input_shape):
     x = kl.MaxPool2D(2, 2)(x5)
 
     x6 = RSU4F(256, 512)(x)
-    x = UpsampleLike()([x6, x5])
+    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x6)
 
     # Decoder
     x = kl.Concatenate()([x, x5])
     x5d = RSU4F(256, 512)(x)
-    x = UpsampleLike()([x5d, x4])
+    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x5d)
 
     x = kl.Concatenate()([x, x4])
     x4d = RSU4(128, 256)(x)
-    x = UpsampleLike()([x4d, x3])
+    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x4d)
 
     x = kl.Concatenate()([x, x3])
     x3d = RSU5(64, 128)(x)
-    x = UpsampleLike()([x3d, x2])
+    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x3d)
 
     x = kl.Concatenate()([x, x2])
     x2d = RSU6(32, 64)(x)
-    x = UpsampleLike()([x2d, x1])
+    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x2d)
 
     x = kl.Concatenate()([x, x1])
     x1d = RSU7(16, 64)(x)
@@ -363,31 +352,30 @@ def U2Net(input_shape):
     s1 = kl.Conv2D(1, 3, padding="same")(x1d)
 
     s2 = kl.Conv2D(1, 3, padding="same")(x2d)
-    s2 = UpsampleLike()([s2, s1])
+    s2 = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(s2)
 
     s3 = kl.Conv2D(1, 3, padding="same")(x3d)
-    s3 = UpsampleLike()([s3, s1])
+    s3 = kl.UpSampling2D(size=[4, 4], interpolation="bilinear")(s3)
 
     s4 = kl.Conv2D(1, 3, padding="same")(x4d)
-    s4 = UpsampleLike()([s4, s1])
+    s4 = kl.UpSampling2D(size=[8, 8], interpolation="bilinear")(s4)
 
     s5 = kl.Conv2D(1, 3, padding="same")(x5d)
-    s5 = UpsampleLike()([s5, s1])
+    s5 = kl.UpSampling2D(size=[16, 16], interpolation="bilinear")(s5)
 
     s6 = kl.Conv2D(1, 3, padding="same")(x6)
-    s6 = UpsampleLike()([s6, s1])
+    s6 = kl.UpSampling2D(size=[32, 32], interpolation="bilinear")(s6)
 
     s0 = kl.Concatenate()([s1, s2, s3, s4, s5, s6])
     s0 = kl.Conv2D(1, 1, padding="same")(s0)
 
-
-    s0 = tf.nn.sigmoid(s0)
-    s1 = tf.nn.sigmoid(s1)
-    s2 = tf.nn.sigmoid(s2)
-    s3 = tf.nn.sigmoid(s3)
-    s4 = tf.nn.sigmoid(s4)
-    s5 = tf.nn.sigmoid(s5)
-    s6 = tf.nn.sigmoid(s6)
+    s0 = kl.Activation("sigmoid", name="s0")(s0)
+    s1 = kl.Activation("sigmoid", name="s1")(s1)
+    s2 = kl.Activation("sigmoid", name="s2")(s2)
+    s3 = kl.Activation("sigmoid", name="s3")(s3)
+    s4 = kl.Activation("sigmoid", name="s4")(s4)
+    s5 = kl.Activation("sigmoid", name="s5")(s5)
+    s6 = kl.Activation("sigmoid", name="s6")(s6)
 
     model = tf.keras.models.Model(inputs=[inputs], outputs=[s0, s1, s2, s3, s4, s5, s6], name="U2Net")
     return model
