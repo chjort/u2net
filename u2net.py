@@ -22,6 +22,50 @@ class REBNCONV(tf.keras.layers.Layer):
         return x
 
 
+class RSU_N(tf.keras.layers.Layer):
+    def __init__(self, n, filters=12, filters_out=3, name=None):
+        super(RSU_N, self).__init__(name=name)
+        self.n = n
+        self.filters = filters
+        self.filters_out = filters_out
+
+        self.conv_in = REBNCONV(self.filters_out, dirate=1)
+        self.conv_encoder = [REBNCONV(self.filters, dirate=1)] * (self.n - 1)
+        self.max_pools = [kl.MaxPool2D(pool_size=2, strides=2, padding='valid')] * (self.n - 2)
+
+        self.conv_n = REBNCONV(self.filters, dirate=2)
+
+        self.conv_decoder = [REBNCONV(self.filters, dirate=1)] * (self.n - 1)
+        self.upsamples = [kl.UpSampling2D(size=[2, 2], interpolation='bilinear')] * (self.n - 2)
+        self.conv_out = REBNCONV(self.filters_out, dirate=1)
+
+    def call(self, inputs, training=None):
+        xin = self.conv_in(inputs, training=training)
+
+        # encoder
+        x = xin
+        x_is = []
+        for i in range(self.n - 2):
+            x_i = self.conv_encoder[i](x, training=training)
+            x = self.max_pools[i](x_i)
+            x_is.append(x_i)
+        x_is.append(self.conv_encoder[-1](x, training=training))
+
+        # mid
+        x = self.conv_n(x_is[-1], training=training)
+
+        # decoder
+        for i in range(self.n - 3, -1, -1):
+            x_i = x_is[i + 1]
+            x = kl.Concatenate()([x, x_i])
+            xid = self.conv_decoder[i](x, training=training)
+            x = self.upsamples[i](xid)
+
+        x = kl.Concatenate()([x, x_is[0]])
+        x = self.conv_out(x, training=training)
+        return xin + x
+
+
 ### RSU-7 ###
 class RSU7(tf.keras.layers.Layer):
     def __init__(self, mid_ch=12, out_ch=3, name=None):
@@ -311,15 +355,19 @@ def U2Net(input_shape):
 
     # Encoder
     x1 = RSU7(32, 64)(inputs)
+    # x1 = RSU_N(7, 32, 64)(inputs)
     x = kl.MaxPool2D(2, 2)(x1)
 
     x2 = RSU6(32, 128)(x)
+    # x2 = RSU_N(6, 32, 128)(x)
     x = kl.MaxPool2D(2, 2)(x2)
 
     x3 = RSU5(64, 256)(x)
+    # x3 = RSU_N(5, 64, 256)(x)
     x = kl.MaxPool2D(2, 2)(x3)
 
     x4 = RSU4(128, 512)(x)
+    # x4 = RSU_N(4, 128, 512)(x)
     x = kl.MaxPool2D(2, 2)(x4)
 
     x5 = RSU4F(256, 512)(x)
@@ -335,18 +383,22 @@ def U2Net(input_shape):
 
     x = kl.Concatenate()([x, x4])
     x4d = RSU4(128, 256)(x)
+    # x4d = RSU_N(4, 128, 256)(x)
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x4d)
 
     x = kl.Concatenate()([x, x3])
     x3d = RSU5(64, 128)(x)
+    # x3d = RSU_N(5, 64, 128)(x)
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x3d)
 
     x = kl.Concatenate()([x, x2])
     x2d = RSU6(32, 64)(x)
+    # x2d = RSU_N(6, 32, 64)(x)
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x2d)
 
     x = kl.Concatenate()([x, x1])
     x1d = RSU7(16, 64)(x)
+    # x1d = RSU_N(7, 16, 64)(x)
 
     # Side outputs
     s1 = kl.Conv2D(1, 3, padding="same")(x1d)
