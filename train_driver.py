@@ -9,6 +9,7 @@ import tensorflow_addons as tfa
 from data_processing import read_sample, preprocess_sample, augment
 from u2net import U2Net
 
+USE_MIXED_PRECISION = False
 RESIZE_SHAPE = (320, 320)
 CROP_SIZE = (288, 288)
 
@@ -26,20 +27,26 @@ test_mask_paths = [os.path.join(TEST_MASK_PATH, os.path.splitext(os.path.basenam
 
 # %% LOAD DATA
 train_td = tf.data.Dataset.from_tensor_slices((train_img_paths, train_mask_paths))
-train_td = train_td.map(read_sample)
-train_td = train_td.map(partial(preprocess_sample, size=RESIZE_SHAPE))
+train_td = train_td.map(read_sample, num_parallel_calls=-1)
+train_td = train_td.map(partial(preprocess_sample, size=RESIZE_SHAPE), num_parallel_calls=-1)
 train_td = train_td.batch(12)
-train_td = train_td.map(partial(augment, crop_size=CROP_SIZE, seed=42))
+train_td = train_td.map(partial(augment, crop_size=CROP_SIZE, seed=42), num_parallel_calls=-1)
 train_td = train_td.repeat(-1)
 train_td = train_td.prefetch(-1)
 
 test_td = tf.data.Dataset.from_tensor_slices((test_img_paths, test_mask_paths))
-test_td = test_td.map(read_sample)
-test_td = test_td.map(partial(preprocess_sample, size=RESIZE_SHAPE))
+test_td = test_td.map(read_sample, num_parallel_calls=-1)
+test_td = test_td.map(partial(preprocess_sample, size=RESIZE_SHAPE), num_parallel_calls=-1)
 test_td = test_td.batch(12)
 test_td = test_td.prefetch(-1)
 
 # %% MAKE MODEL
+if USE_MIXED_PRECISION:
+    policy = tf.keras.mixed_precision.experimental.Policy("mixed_float16")
+    tf.keras.mixed_precision.experimental.set_policy(policy)
+    print("Computation dtype:", policy.compute_dtype)
+    print("Variable dtype:", policy.variable_dtype)
+
 u2net = U2Net(input_shape=[None, None, 3])
 u2net.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3, epsilon=1e-8),
               loss=[tf.keras.losses.BinaryCrossentropy()] * 7,

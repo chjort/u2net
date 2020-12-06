@@ -206,13 +206,13 @@ def U2Net(input_shape):
     s0 = kl.Concatenate()([s1, s2, s3, s4, s5, s6])
     s0 = kl.Conv2D(1, 1, padding="same")(s0)
 
-    s0 = kl.Activation("sigmoid", name="s0")(s0)
-    s1 = kl.Activation("sigmoid", name="s1")(s1)
-    s2 = kl.Activation("sigmoid", name="s2")(s2)
-    s3 = kl.Activation("sigmoid", name="s3")(s3)
-    s4 = kl.Activation("sigmoid", name="s4")(s4)
-    s5 = kl.Activation("sigmoid", name="s5")(s5)
-    s6 = kl.Activation("sigmoid", name="s6")(s6)
+    s0 = kl.Activation("sigmoid", dtype="float32", name="s0")(s0)
+    s1 = kl.Activation("sigmoid", dtype="float32", name="s1")(s1)
+    s2 = kl.Activation("sigmoid", dtype="float32", name="s2")(s2)
+    s3 = kl.Activation("sigmoid", dtype="float32", name="s3")(s3)
+    s4 = kl.Activation("sigmoid", dtype="float32", name="s4")(s4)
+    s5 = kl.Activation("sigmoid", dtype="float32", name="s5")(s5)
+    s6 = kl.Activation("sigmoid", dtype="float32", name="s6")(s6)
 
     model = tf.keras.models.Model(inputs=[inputs], outputs=[s0, s1, s2, s3, s4, s5, s6], name="U2Net")
     return model
