@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-SEED = 42
-
 
 def read_image(img_path, channels=3):
     img_bytes = tf.io.read_file(img_path)

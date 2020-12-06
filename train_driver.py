@@ -73,7 +73,8 @@ hist = u2net.fit(train_td,
                          mode="max",
                          save_weights_only=True
                      ),
-                     tf.keras.callbacks.TensorBoard(log_dir=output_dir, profile_batch=0)  # ssh -L 6006:127.0.0.1:6006 <user>@<ip>
+                     tf.keras.callbacks.TensorBoard(log_dir=output_dir, profile_batch=0)
+                     # ssh -L 6006:127.0.0.1:6006 <user>@<ip>
                  ]
                  )
 
