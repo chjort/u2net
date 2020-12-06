@@ -147,43 +147,43 @@ def U2Net(input_shape):
     inputs = kl.Input(input_shape)
 
     # Encoder
-    x1 = RSU_N(7, 32, 64)(inputs)
+    x1 = RSU_N(7, 32, 64)(inputs)  # RSU-7
     x = kl.MaxPool2D(2, 2)(x1)
 
-    x2 = RSU_N(6, 32, 128)(x)
+    x2 = RSU_N(6, 32, 128)(x)  # RSU-6
     x = kl.MaxPool2D(2, 2)(x2)
 
-    x3 = RSU_N(5, 64, 256)(x)
+    x3 = RSU_N(5, 64, 256)(x)  # RSU-5
     x = kl.MaxPool2D(2, 2)(x3)
 
-    x4 = RSU_N(4, 128, 512)(x)
+    x4 = RSU_N(4, 128, 512)(x)  # RSU-5
     x = kl.MaxPool2D(2, 2)(x4)
 
-    x5 = RSU_NF(4, 256, 512)(x)
+    x5 = RSU_NF(4, 256, 512)(x)  # RSU-4F
     x = kl.MaxPool2D(2, 2)(x5)
 
-    x6 = RSU_NF(4, 256, 512)(x)
+    x6 = RSU_NF(4, 256, 512)(x)  # RSU-4F
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x6)
 
     # Decoder
     x = kl.Concatenate()([x, x5])
-    x5d = RSU_NF(4, 256, 512)(x)
+    x5d = RSU_NF(4, 256, 512)(x)  # RSU-4F
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x5d)
 
     x = kl.Concatenate()([x, x4])
-    x4d = RSU_N(4, 128, 256)(x)
+    x4d = RSU_N(4, 128, 256)(x)  # RSU-4
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x4d)
 
     x = kl.Concatenate()([x, x3])
-    x3d = RSU_N(5, 64, 128)(x)
+    x3d = RSU_N(5, 64, 128)(x)  # RSU-5
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x3d)
 
     x = kl.Concatenate()([x, x2])
-    x2d = RSU_N(6, 32, 64)(x)
+    x2d = RSU_N(6, 32, 64)(x)  # RSU-6
     x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x2d)
 
     x = kl.Concatenate()([x, x1])
-    x1d = RSU_N(7, 16, 64)(x)
+    x1d = RSU_N(7, 16, 64)(x)  # RSU-7
 
     # Side outputs
     s1 = kl.Conv2D(1, 3, padding="same")(x1d)
