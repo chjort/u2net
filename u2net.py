@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.keras import layers as kl
 
+sample_interpolation = "nearest"
+
 
 class REBNCONV(tf.keras.layers.Layer):
     def __init__(self, filters=3, dilation_rate=1, name=None):
@@ -43,12 +45,13 @@ class RSU_N(tf.keras.layers.Layer):
 
         self.conv_in = REBNCONV(self.filters_out, dilation_rate=1)
         self.conv_encoder = [REBNCONV(self.filters, dilation_rate=1) for _ in range(self.n - 1)]
-        self.max_pools = [kl.MaxPool2D(pool_size=2, strides=2, padding='valid') for _ in range(self.n - 2)]
+        self.max_pools = [kl.MaxPool2D(pool_size=2, strides=2) for _ in range(self.n - 2)]
 
         self.conv_n = REBNCONV(self.filters, dilation_rate=2)
 
         self.conv_decoder = [REBNCONV(self.filters, dilation_rate=1) for _ in range(self.n - 1)]
-        self.upsamples = [kl.UpSampling2D(size=[2, 2], interpolation='bilinear') for _ in range(self.n - 2)]
+        self.upsamples = [kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation) for _ in
+                          range(self.n - 2)]
         self.conv_out = REBNCONV(self.filters_out, dilation_rate=1)
 
     def call(self, inputs, training=None):
@@ -163,24 +166,24 @@ def U2Net(input_shape):
     x = kl.MaxPool2D(2, 2)(x5)
 
     x6 = RSU_NF(4, 256, 512)(x)  # RSU-4F
-    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x6)
+    x = kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation)(x6)
 
     # Decoder
     x = kl.Concatenate()([x, x5])
     x5d = RSU_NF(4, 256, 512)(x)  # RSU-4F
-    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x5d)
+    x = kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation)(x5d)
 
     x = kl.Concatenate()([x, x4])
     x4d = RSU_N(4, 128, 256)(x)  # RSU-4
-    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x4d)
+    x = kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation)(x4d)
 
     x = kl.Concatenate()([x, x3])
     x3d = RSU_N(5, 64, 128)(x)  # RSU-5
-    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x3d)
+    x = kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation)(x3d)
 
     x = kl.Concatenate()([x, x2])
     x2d = RSU_N(6, 32, 64)(x)  # RSU-6
-    x = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(x2d)
+    x = kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation)(x2d)
 
     x = kl.Concatenate()([x, x1])
     x1d = RSU_N(7, 16, 64)(x)  # RSU-7
@@ -189,19 +192,19 @@ def U2Net(input_shape):
     s1 = kl.Conv2D(1, 3, padding="same")(x1d)
 
     s2 = kl.Conv2D(1, 3, padding="same")(x2d)
-    s2 = kl.UpSampling2D(size=[2, 2], interpolation="bilinear")(s2)
+    s2 = kl.UpSampling2D(size=[2, 2], interpolation=sample_interpolation)(s2)
 
     s3 = kl.Conv2D(1, 3, padding="same")(x3d)
-    s3 = kl.UpSampling2D(size=[4, 4], interpolation="bilinear")(s3)
+    s3 = kl.UpSampling2D(size=[4, 4], interpolation=sample_interpolation)(s3)
 
     s4 = kl.Conv2D(1, 3, padding="same")(x4d)
-    s4 = kl.UpSampling2D(size=[8, 8], interpolation="bilinear")(s4)
+    s4 = kl.UpSampling2D(size=[8, 8], interpolation=sample_interpolation)(s4)
 
     s5 = kl.Conv2D(1, 3, padding="same")(x5d)
-    s5 = kl.UpSampling2D(size=[16, 16], interpolation="bilinear")(s5)
+    s5 = kl.UpSampling2D(size=[16, 16], interpolation=sample_interpolation)(s5)
 
     s6 = kl.Conv2D(1, 3, padding="same")(x6)
-    s6 = kl.UpSampling2D(size=[32, 32], interpolation="bilinear")(s6)
+    s6 = kl.UpSampling2D(size=[32, 32], interpolation=sample_interpolation)(s6)
 
     s0 = kl.Concatenate()([s1, s2, s3, s4, s5, s6])
     s0 = kl.Conv2D(1, 1, padding="same")(s0)

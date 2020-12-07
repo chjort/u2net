@@ -9,11 +9,11 @@ import tensorflow_addons as tfa
 from data_processing import read_sample, preprocess_sample, augment
 from u2net import U2Net
 
-USE_MIXED_PRECISION = False
+USE_MIXED_PRECISION = True
 USE_MULTI_GPU = True
 RESIZE_SHAPE = (320, 320)
 CROP_SIZE = (288, 288)
-BATCH_SIZE_PER_DEVICE = 36
+BATCH_SIZE_PER_DEVICE = 36 * (2 * int(USE_MIXED_PRECISION))
 
 TRAIN_IMG_PATH = "/home/crr/datasets/duts/DUTS-TR/DUTS-TR-Image"
 TRAIN_MASK_PATH = "/home/crr/datasets/duts/DUTS-TR/DUTS-TR-Mask"
@@ -72,31 +72,37 @@ u2net.summary()
 
 # %% TRAIN
 total_steps = 600000 // (global_batch_size // 12)
-steps_per_epoch = 100
+steps_per_epoch = 1000
 epochs = total_steps // steps_per_epoch
 
 output_dir = os.path.join("outputs", datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-os.makedirs(output_dir)
+log_dir = os.path.join(output_dir, "logs")
+weights_dir = os.path.join(output_dir, "weights")
+os.makedirs(log_dir)
+os.makedirs(weights_dir)
+
+u2net.save_weights(os.path.join(weights_dir, "initial_weights.h5"))
 hist = u2net.fit(train_td,
                  epochs=epochs,
                  steps_per_epoch=steps_per_epoch,
                  callbacks=[
                      tf.keras.callbacks.CSVLogger(
-                         filename=os.path.join(output_dir, "log.csv")
+                         filename=os.path.join(log_dir, "log.csv")
                      ),
                      tf.keras.callbacks.ModelCheckpoint(
-                         filepath=os.path.join(output_dir, "weights.h5"),
+                         filepath=os.path.join(weights_dir, "best_weights.h5"),
                          monitor="s0_Fbeta",
                          mode="max",
-                         save_weights_only=True
+                         save_weights_only=True,
+                         save_best_only=True
                      ),
-                     tf.keras.callbacks.TensorBoard(log_dir=output_dir, profile_batch=0)
+                     tf.keras.callbacks.TensorBoard(log_dir=log_dir, profile_batch=0)
                      # ssh -L 6006:127.0.0.1:6006 <user>@<ip>
                  ]
                  )
 
-# float32, 36bz - 105 s
-# float16, 36bz - *
-
 # %% EVALUATE
+u2net.save(os.path.join(weights_dir, "model.h5"))
+u2net.save_weights(os.path.join(weights_dir, "latest_weights.h5"))
+
 u2net.evaluate(test_td)
