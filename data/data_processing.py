@@ -27,11 +27,11 @@ def read_sample(x, y):
     return x, y
 
 
-def preprocess_sample(x, y, size=(320, 320)):
+def preprocess_sample(x, y, size=(320, 320), normalize=True):
     x_channels = tf.shape(x)[-1]
     xy = tf.concat([x, y], axis=-1)
 
-    xy = preprocess_img(xy, size=size)
+    xy = preprocess_img(xy, size=size, normalize=normalize)
 
     x = xy[..., :x_channels]
     y = xy[..., x_channels:]
@@ -39,10 +39,14 @@ def preprocess_sample(x, y, size=(320, 320)):
     return x, y
 
 
-def preprocess_img(x, size=(320, 320)):
-    x = tf.cast(x, tf.float32)
-    x = x / 255.
+def preprocess_img(x, size=(320, 320), normalize=True):
     x = tf.image.resize(x, size=size)
+
+    if normalize:
+        x = x / 255.
+    else:
+        x = tf.cast(x, tf.uint8)
+
     return x
 
 

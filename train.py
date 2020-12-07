@@ -1,36 +1,28 @@
 import datetime
-import glob
 import os
 from functools import partial
 
 import tensorflow as tf
 import tensorflow_addons as tfa
 
-from data_processing import read_sample, preprocess_sample, augment
+from data.data_processing import augment
+from data.tf_record import batch_deserialize_tensor_example_float32
 from u2net import U2Net
 
 USE_MIXED_PRECISION = True
 USE_MULTI_GPU = True
 RESIZE_SHAPE = (320, 320)
 CROP_SIZE = (288, 288)
-BATCH_SIZE_PER_DEVICE = 36 * (2 * int(USE_MIXED_PRECISION))
+BATCH_SIZE_PER_DEVICE = 36
 
-TRAIN_IMG_PATH = "/home/crr/datasets/duts/DUTS-TR/DUTS-TR-Image"
-TRAIN_MASK_PATH = "/home/crr/datasets/duts/DUTS-TR/DUTS-TR-Mask"
-TEST_IMG_PATH = "/home/crr/datasets/duts/DUTS-TE/DUTS-TE-Image"
-TEST_MASK_PATH = "/home/crr/datasets/duts/DUTS-TE/DUTS-TE-Mask"
-
-train_img_paths = glob.glob(os.path.join(TRAIN_IMG_PATH, "*.*"))
-train_mask_paths = [os.path.join(TRAIN_MASK_PATH, os.path.splitext(os.path.basename(imgp))[0] + ".png") for imgp in
-                    train_img_paths]
-test_img_paths = glob.glob(os.path.join(TEST_IMG_PATH, "*.*"))
-test_mask_paths = [os.path.join(TEST_MASK_PATH, os.path.splitext(os.path.basename(imgp))[0] + ".png") for imgp in
-                   test_img_paths]
+TRAIN_PATH = "/home/crr/datasets/duts/DUTS-TR/train.tfrecord"
+TEST_PATH = "/home/crr/datasets/duts/DUTS-TE/test.tfrecord"
 
 # %% LOAD DATA
 if USE_MIXED_PRECISION:
     policy = tf.keras.mixed_precision.experimental.Policy("mixed_float16")
     tf.keras.mixed_precision.experimental.set_policy(policy)
+    BATCH_SIZE_PER_DEVICE = BATCH_SIZE_PER_DEVICE * 2
     print("Computation dtype:", policy.compute_dtype)
     print("Variable dtype:", policy.variable_dtype)
 
@@ -41,18 +33,16 @@ else:
 
 global_batch_size = BATCH_SIZE_PER_DEVICE * strategy.num_replicas_in_sync
 
-train_td = tf.data.Dataset.from_tensor_slices((train_img_paths, train_mask_paths))
-train_td = train_td.map(read_sample, num_parallel_calls=-1)
-train_td = train_td.map(partial(preprocess_sample, size=RESIZE_SHAPE), num_parallel_calls=-1)
+train_td = tf.data.TFRecordDataset(TRAIN_PATH, num_parallel_reads=-1)
 train_td = train_td.batch(global_batch_size)
+train_td = train_td.map(batch_deserialize_tensor_example_float32)
 train_td = train_td.map(partial(augment, crop_size=CROP_SIZE, seed=42), num_parallel_calls=-1)
 train_td = train_td.repeat(-1)
 train_td = train_td.prefetch(-1)
 
-test_td = tf.data.Dataset.from_tensor_slices((test_img_paths, test_mask_paths))
-test_td = test_td.map(read_sample, num_parallel_calls=-1)
-test_td = test_td.map(partial(preprocess_sample, size=RESIZE_SHAPE), num_parallel_calls=-1)
+test_td = tf.data.TFRecordDataset(TEST_PATH, num_parallel_reads=-1)
 test_td = test_td.batch(global_batch_size)
+test_td = test_td.map(batch_deserialize_tensor_example_float32)
 test_td = test_td.prefetch(-1)
 
 # %% MAKE MODEL
@@ -72,7 +62,7 @@ u2net.summary()
 
 # %% TRAIN
 total_steps = 600000 // (global_batch_size // 12)
-steps_per_epoch = 1000
+steps_per_epoch = 100
 epochs = total_steps // steps_per_epoch
 
 output_dir = os.path.join("outputs", datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
