@@ -62,7 +62,7 @@ u2net.summary()
 
 # %% TRAIN
 total_steps = 600000 // (global_batch_size // 12)
-steps_per_epoch = 100
+steps_per_epoch = 1000
 epochs = total_steps // steps_per_epoch
 
 output_dir = os.path.join("outputs", datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
