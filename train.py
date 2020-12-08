@@ -36,15 +36,14 @@ global_batch_size = BATCH_SIZE_PER_DEVICE * strategy.num_replicas_in_sync
 train_td = tf.data.TFRecordDataset(TRAIN_PATH, num_parallel_reads=-1)
 train_td = train_td.batch(global_batch_size)
 train_td = train_td.map(batch_deserialize_tensor_example_float32)
-train_td = train_td.map(partial(augment, crop_size=CROP_SIZE, seed=42), num_parallel_calls=-1)
 train_td = train_td.cache()
+train_td = train_td.map(partial(augment, crop_size=CROP_SIZE, seed=42), num_parallel_calls=-1)
 train_td = train_td.repeat(-1)
 train_td = train_td.prefetch(-1)
 
 test_td = tf.data.TFRecordDataset(TEST_PATH, num_parallel_reads=-1)
 test_td = test_td.batch(global_batch_size)
 test_td = test_td.map(batch_deserialize_tensor_example_float32)
-train_td = train_td.cache()
 test_td = test_td.prefetch(-1)
 
 # %% MAKE MODEL
